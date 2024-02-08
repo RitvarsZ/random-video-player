@@ -1,5 +1,5 @@
 <template>
-  <video muted ref="videoElement" width="100%" class="bg-black"></video>
+  <video muted ref="videoElement" width="100%" class="bg-black aspect-video"></video>
   <div class="flex justify-between">
     <VideoControls
       @play="play"
@@ -34,7 +34,7 @@
       <p>
         Total queued: {{ totalQueued }}
       </p>
-      <template v-for="entry in queue" :key="entry.id">
+      <template v-for="entry in queue.slice(0, 10)" :key="entry.id">
         <QueueEntry :entry="entry" class="mb-3 bg-gray-700" />
       </template>
 
