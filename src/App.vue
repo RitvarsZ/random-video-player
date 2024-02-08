@@ -1,64 +1,109 @@
 <template>
   <video muted ref="videoElement" width="100%" class="bg-black"></video>
-  <VideoControls
-    @play="play"
-    @stop="stop"
-    @fullscreen="videoElement?.requestFullscreen()"
-  />
-  <div class="mt-4">
-    <ConfigurationControls v-model="configuration" />
-  </div>
-  <div class="mt-4">
-    <AddMediaButton @add-media="addMedia" />
-    <FileEntry v-for="[id, file] in videos.entries()"
-      :file="file.file"
-      :meta="file.meta"
-      @remove="removeMedia(id)"
+  <div class="flex justify-between">
+    <VideoControls
+      @play="play"
+      @stop="stop"
+      @fullscreen="videoElement?.requestFullscreen()"
     />
+    <div class="mt-4">
+      <ConfigurationControls v-model="configuration" />
+    </div>
+  </div>
+  <div class="mt-4 flex gap-4">
+    <AddMediaButton @add-media="addMedia" />
+    <button @click="generate">Generate Queue</button>
+    <button @click="shuffle">Shuffle Queue</button>
+  </div>
+  <div class="grid grid-cols-2 grid-rows-1 gap-6">
+    <div class="mt-4">
+      <FileEntry v-for="[id, file] in videos.entries()"
+        :file="file.file"
+        :meta="file.meta"
+        @remove="removeFile(id)"
+      />
+    </div>
+    <div>
+      <template v-if="nowPlaying && !videoElement?.paused">
+        <div class="mb-3 font-bold">[[Now Playing]]</div>
+        <QueueEntry :entry="nowPlaying" class="bg-amber-700 mb-4" />
+      </template>
+
+      <hr class="mb-4 w-3/4 m-auto">
+      <div class="mb-3 font-bold">[[ up next ]]</div>
+      <p>
+        Total queued: {{ totalQueued }}
+      </p>
+      <template v-for="entry in queue" :key="entry.id">
+        <QueueEntry :entry="entry" class="mb-3 bg-gray-700" />
+      </template>
+
+      <div class="mb-3 font-bold">[[ history ]]</div>
+      <template v-for="entry in history" :key="entry.id">
+        <QueueEntry :entry="entry" class="mb-3" />
+      </template>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { reactive, ref, Ref } from 'vue';
+import { computed, ref, Ref } from 'vue';
 import VideoControls from './components/VideoControls.vue';
 import FileEntry from './components/FileEntry.vue';
-import AddMediaButton, { ProcessedFile } from './components/AddMediaButton.vue';
+import AddMediaButton from './components/AddMediaButton.vue';
 import ConfigurationControls from './components/ConfigurationControls.vue';
+import QueueEntry from './components/QueueEntry.vue';
+import { useClipQueue } from './composables/clip-queue';
 
 const videoElement = ref<HTMLVideoElement|null>(null);
-const videos: Ref<Map<string, {
-  file: File,
-  meta: {thumbnail: string, duration: number}
-}>> = ref(new Map())
 
-const configuration = reactive({
-  min: 5,
-  max: 120,
+const {
+  files: videos,
+  history,
+  queue,
+  params: configuration,
+  nowPlaying,
+  dequeue,
+  addFile,
+  removeFile,
+  shuffle,
+  generate
+} = useClipQueue();
+
+const totalQueued = computed(() => {
+  const durationS = queue.value.reduce((acc, cur) => acc + cur.duration, 0);
+  const hours = `0${Math.floor(durationS / 3600)}`;
+  const minutes = `0${Math.floor((durationS % 3600) / 60)}`;
+
+  return `${hours.slice(-2)}:${minutes.slice(-2)}`;
 })
 
 const timeout = ref<number|null>(null);
 
 function play() {
-  if (!videoElement.value?.paused || !videoElement.value || !videos.value.size) return
+  if (!videoElement.value?.paused || !videoElement.value || !videos.value.size) return;
+  if (queue.value.length === 0) return;
 
-  loadRandomVideo(videoElement as Ref<HTMLVideoElement>)
+  playFromQueue(videoElement as Ref<HTMLVideoElement>);
 }
 
-function loadRandomVideo (videoElement: Ref<HTMLVideoElement>) {
-  // Get random video from videos map.
-  const randomVideo = Array.from(videos.value.values())[Math.floor(Math.random() * videos.value.size)]
+function playFromQueue(videoElement: Ref<HTMLVideoElement>) {
+  const video = dequeue();
 
-  if (!randomVideo) {
+  if (!video || !videoElement) {
     stop();
     return;
   }
 
-  videoElement.value.src = URL.createObjectURL(randomVideo.file);
-  const duration = Math.floor(Math.random() * (configuration.max - configuration.min + 1) + configuration.min);
-  // Get and set random start time
-  const start = Math.floor(Math.random() * (randomVideo.meta.duration - duration)) || 1;
-  videoElement.value.currentTime = start;
-  timeout.value = setTimeout(loadRandomVideo, duration * 1000, videoElement)
+  const file = videos.value.get(video.fileId)?.file;
+  if (!file) {
+    stop();
+    return;
+  }
+
+  videoElement.value.src = URL.createObjectURL(file);
+  videoElement.value.currentTime = video.from;
+  timeout.value = setTimeout(playFromQueue, video.duration * 1000, videoElement)
   videoElement.value.play()
 }
 
@@ -66,19 +111,16 @@ function stop() {
   videoElement.value?.pause();
 
   if (timeout.value) {
-    clearTimeout(timeout.value)
-    timeout.value = null
+    clearTimeout(timeout.value);
+    timeout.value = null;
   }
 }
 
 function addMedia(files: ProcessedFile[]) {
   for (const file of files) {
-    videos.value.set(file.id, {file: file.file, meta: file.meta})
+    addFile(file);
   }
 }
 
-function removeMedia(id: string) {
-  videos.value.delete(id)
-}
 </script>
 

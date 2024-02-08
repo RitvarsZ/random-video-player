@@ -1,7 +1,7 @@
 <template>
   <div class="flex gap-4 mb-2 items-start">
     <img :src="props.meta.thumbnail" :alt="props.file.name" width="220">
-    <div>
+    <div class="flex-grow">
       <p>{{props.file.name}}</p>
       <p>Duration: {{formatDuration(props.meta.duration)}}</p>
     </div>

@@ -1,24 +1,24 @@
 <template>
-  <div>
+  <div class="flex gap-4">
     <div>
-      <label for="min">Min duration: {{model.min?.valueOf()}}</label>
+      <label for="min">Min duration:</label>
       <input 
         v-model="model.min"
         name="min" 
-        type="range" 
-        class="block" 
+        type="number" 
+        class="block px-2 py-1 rounded-lg" 
         step="1"
         min="1"
         :max="model.max"
       />
     </div>
     <div>
-      <label for="max">Max duration: {{model.max?.valueOf()}}</label>
+      <label for="max">Max duration:</label>
       <input 
         v-model="model.max"
         name="max" 
-        type="range" 
-        class="block" 
+        type="number" 
+        class="block px-2 py-1 rounded-lg" 
         step="1"
         :min="model.min"
         max="240"

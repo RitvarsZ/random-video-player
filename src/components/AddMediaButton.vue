@@ -1,10 +1,9 @@
 <template>
-  <button class="mb-2" @click="addMedia()">Add Media</button>
+  <button @click="addMedia()">Add Media</button>
 </template>
 
 
 <script setup lang="ts">
-export type ProcessedFile = {id: string, file: File, meta: { thumbnail: string, duration: number}}
 const emit = defineEmits<{
   (e: 'add-media', files: ProcessedFile[]): void
 }>();
